@@ -1,20 +1,114 @@
-// Chat Application with Mock Backend and Session History
+// Chat Application with Mock Backend and Multiple Session History
 
 class ChatApp {
     constructor() {
-        this.messages = [];
-        this.storageKey = 'chatHistory';
+        this.sessions = {};
+        this.currentSessionId = null;
+        this.storageKey = 'chatSessions';
+        this.currentSessionKey = 'currentSession';
         this.init();
     }
 
     init() {
-        this.loadHistory();
+        this.loadSessions();
+
+        // Create first session if none exist
+        if (Object.keys(this.sessions).length === 0) {
+            this.createSession();
+        } else {
+            // Load the last active session
+            const lastSessionId = localStorage.getItem(this.currentSessionKey);
+            if (lastSessionId && this.sessions[lastSessionId]) {
+                this.currentSessionId = lastSessionId;
+            } else {
+                // Use first session
+                this.currentSessionId = Object.keys(this.sessions)[0];
+            }
+        }
+
+        this.renderSessions();
+        this.switchToSession(this.currentSessionId);
+    }
+
+    loadSessions() {
+        const stored = localStorage.getItem(this.storageKey);
+        if (stored) {
+            try {
+                this.sessions = JSON.parse(stored);
+            } catch (e) {
+                console.error('Error loading sessions:', e);
+                this.sessions = {};
+            }
+        }
+    }
+
+    saveSessions() {
+        localStorage.setItem(this.storageKey, JSON.stringify(this.sessions));
+        if (this.currentSessionId) {
+            localStorage.setItem(this.currentSessionKey, this.currentSessionId);
+        }
+    }
+
+    createSession(name = null) {
+        const sessionId = 'session_' + Date.now();
+        const sessionCount = Object.keys(this.sessions).length + 1;
+
+        this.sessions[sessionId] = {
+            id: sessionId,
+            name: name || `Chat ${sessionCount}`,
+            messages: [],
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString()
+        };
+
+        this.saveSessions();
+        this.renderSessions();
+        this.switchToSession(sessionId);
+
+        return sessionId;
+    }
+
+    deleteSession(sessionId) {
+        if (!sessionId || !this.sessions[sessionId]) return;
+
+        // Don't delete if it's the only session
+        if (Object.keys(this.sessions).length === 1) {
+            alert('Cannot delete the last session. Create a new one first.');
+            return;
+        }
+
+        if (!confirm('Are you sure you want to delete this chat session?')) {
+            return;
+        }
+
+        delete this.sessions[sessionId];
+
+        // Switch to another session if current one was deleted
+        if (this.currentSessionId === sessionId) {
+            const sessionIds = Object.keys(this.sessions);
+            this.currentSessionId = sessionIds[0];
+            this.switchToSession(this.currentSessionId);
+        }
+
+        this.saveSessions();
+        this.renderSessions();
+    }
+
+    switchToSession(sessionId) {
+        if (!sessionId || !this.sessions[sessionId]) return;
+
+        this.currentSessionId = sessionId;
+        this.saveSessions();
+        this.renderSessions();
         this.renderMessages();
 
-        // Show welcome message if no history
-        if (this.messages.length === 0) {
-            this.showWelcomeMessage();
-        }
+        // Update header title
+        const session = this.sessions[sessionId];
+        document.getElementById('sessionTitle').textContent = session.name;
+    }
+
+    getCurrentSession() {
+        return this.sessions[this.currentSessionId];
     }
 
     showWelcomeMessage() {
@@ -22,23 +116,57 @@ class ChatApp {
         chatMessages.innerHTML = '<div class="empty-state">Start a conversation by typing a message below!</div>';
     }
 
-    loadHistory() {
-        const stored = localStorage.getItem(this.storageKey);
-        if (stored) {
-            try {
-                this.messages = JSON.parse(stored);
-            } catch (e) {
-                console.error('Error loading history:', e);
-                this.messages = [];
-            }
-        }
+    renderSessions() {
+        const sessionsList = document.getElementById('sessionsList');
+        sessionsList.innerHTML = '';
+
+        // Sort sessions by most recently updated
+        const sortedSessions = Object.values(this.sessions).sort((a, b) => {
+            return new Date(b.updatedAt) - new Date(a.updatedAt);
+        });
+
+        sortedSessions.forEach(session => {
+            const sessionDiv = document.createElement('div');
+            sessionDiv.className = `session-item ${session.id === this.currentSessionId ? 'active' : ''}`;
+            sessionDiv.onclick = () => this.switchToSession(session.id);
+
+            const lastMessage = session.messages[session.messages.length - 1];
+            const preview = lastMessage ? lastMessage.content : 'No messages yet';
+            const time = this.formatSessionTime(session.updatedAt);
+
+            sessionDiv.innerHTML = `
+                <div class="session-avatar">${session.name.charAt(0)}</div>
+                <div class="session-info">
+                    <div class="session-name">${this.escapeHtml(session.name)}</div>
+                    <div class="session-preview">${this.escapeHtml(preview)}</div>
+                </div>
+                <div class="session-meta">${time}</div>
+            `;
+
+            sessionsList.appendChild(sessionDiv);
+        });
     }
 
-    saveHistory() {
-        localStorage.setItem(this.storageKey, JSON.stringify(this.messages));
+    formatSessionTime(timestamp) {
+        const date = new Date(timestamp);
+        const now = new Date();
+        const diffMs = now - date;
+        const diffMins = Math.floor(diffMs / 60000);
+        const diffHours = Math.floor(diffMs / 3600000);
+        const diffDays = Math.floor(diffMs / 86400000);
+
+        if (diffMins < 1) return 'Just now';
+        if (diffMins < 60) return `${diffMins}m ago`;
+        if (diffHours < 24) return `${diffHours}h ago`;
+        if (diffDays < 7) return `${diffDays}d ago`;
+
+        return date.toLocaleDateString();
     }
 
     addMessage(content, isUser = true) {
+        const session = this.getCurrentSession();
+        if (!session) return;
+
         const message = {
             id: Date.now() + Math.random(),
             content: content,
@@ -46,9 +174,11 @@ class ChatApp {
             timestamp: new Date().toISOString()
         };
 
-        this.messages.push(message);
-        this.saveHistory();
+        session.messages.push(message);
+        session.updatedAt = new Date().toISOString();
+        this.saveSessions();
         this.renderMessage(message);
+        this.renderSessions(); // Update session preview
         this.scrollToBottom();
     }
 
@@ -81,15 +211,16 @@ class ChatApp {
     }
 
     renderMessages() {
+        const session = this.getCurrentSession();
         const chatMessages = document.getElementById('chatMessages');
         chatMessages.innerHTML = '';
 
-        if (this.messages.length === 0) {
+        if (!session || session.messages.length === 0) {
             this.showWelcomeMessage();
             return;
         }
 
-        this.messages.forEach(message => {
+        session.messages.forEach(message => {
             this.renderMessage(message);
         });
 
@@ -149,13 +280,6 @@ class ChatApp {
         }
     }
 
-    clearHistory() {
-        if (confirm('Are you sure you want to clear all chat history?')) {
-            this.messages = [];
-            this.saveHistory();
-            this.renderMessages();
-        }
-    }
 }
 
 // Initialize the chat app
@@ -177,8 +301,12 @@ function handleKeyPress(event) {
     }
 }
 
-function clearHistory() {
-    chatApp.clearHistory();
+function createNewSession() {
+    chatApp.createSession();
+}
+
+function deleteCurrentSession() {
+    chatApp.deleteSession(chatApp.currentSessionId);
 }
 
 // Focus input on load

@@ -7,35 +7,59 @@
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
-    <div class="chat-container">
-        <div class="chat-header">
-            <div class="header-content">
-                <div class="avatar">C</div>
-                <div class="header-info">
-                    <h2>Chat Bot</h2>
-                    <span class="status">Online</span>
+    <div class="app-container">
+        <!-- Sessions Sidebar -->
+        <div class="sessions-sidebar">
+            <div class="sidebar-header">
+                <h1>Chats</h1>
+                <button class="new-session-btn" onclick="createNewSession()" title="New Chat">
+                    <svg viewBox="0 0 24 24" width="20" height="20">
+                        <path fill="currentColor" d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"></path>
+                    </svg>
+                </button>
+            </div>
+            <div class="sessions-list" id="sessionsList">
+                <!-- Session items will be dynamically added here -->
+            </div>
+        </div>
+
+        <!-- Chat Area -->
+        <div class="chat-container">
+            <div class="chat-header">
+                <div class="header-content">
+                    <div class="avatar">C</div>
+                    <div class="header-info">
+                        <h2 id="sessionTitle">Chat Bot</h2>
+                        <span class="status">Online</span>
+                    </div>
+                </div>
+                <div class="header-actions">
+                    <button class="header-btn" onclick="deleteCurrentSession()" title="Delete Session">
+                        <svg viewBox="0 0 24 24" width="20" height="20">
+                            <path fill="currentColor" d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"></path>
+                        </svg>
+                    </button>
                 </div>
             </div>
-            <button class="clear-history" onclick="clearHistory()">Clear History</button>
-        </div>
 
-        <div class="chat-messages" id="chatMessages">
-            <!-- Messages will be dynamically added here -->
-        </div>
+            <div class="chat-messages" id="chatMessages">
+                <!-- Messages will be dynamically added here -->
+            </div>
 
-        <div class="chat-input-container">
-            <input
-                type="text"
-                id="messageInput"
-                class="chat-input"
-                placeholder="Type a message..."
-                onkeypress="handleKeyPress(event)"
-            >
-            <button class="send-button" onclick="sendMessage()">
-                <svg viewBox="0 0 24 24" width="24" height="24">
-                    <path fill="currentColor" d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"></path>
-                </svg>
-            </button>
+            <div class="chat-input-container">
+                <input
+                    type="text"
+                    id="messageInput"
+                    class="chat-input"
+                    placeholder="Type a message..."
+                    onkeypress="handleKeyPress(event)"
+                >
+                <button class="send-button" onclick="sendMessage()">
+                    <svg viewBox="0 0 24 24" width="24" height="24">
+                        <path fill="currentColor" d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"></path>
+                    </svg>
+                </button>
+            </div>
         </div>
     </div>
 
